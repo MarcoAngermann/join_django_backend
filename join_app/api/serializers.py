@@ -13,13 +13,7 @@ class ContactSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         user = self.context['request'].user
 
-        if user.is_guest:
-            guest_contacts = self.context['request'].session.get('guest_contacts', [])
-            guest_contacts.append(validated_data)
-            self.context['request'].session['guest_contacts'] = guest_contacts
-            self.context['request'].session.save()
-            return validated_data
-
+        # Sicherstellen, dass der Benutzer selbst in der Liste ist
         if not Contact.objects.filter(user=user, email=user.email).exists():
             Contact.objects.create(
                 user=user,
@@ -30,15 +24,16 @@ class ContactSerializer(serializers.ModelSerializer):
                 phone=validated_data.get('phone', ""),
             )
 
+        # Zusätzliche Kontakte hinzufügen
         validated_data['user'] = user
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
+        # Normales Update
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
         return instance
-
 
 class SubtaskSerializer(serializers.ModelSerializer):
     class Meta:
@@ -51,14 +46,12 @@ class SubtaskSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Es sind maximal 5 Subtasks erlaubt.")
         return value
 
-
 class TaskUserDetailsSerializer(serializers.ModelSerializer):
     user = CustomUserSerializer()
 
     class Meta:
         model = TaskUserDetails
         fields = ('user', 'checked')
-
 
 class TaskSerializer(serializers.ModelSerializer):
     user_ids = serializers.ListField(
@@ -80,14 +73,6 @@ class TaskSerializer(serializers.ModelSerializer):
         return user_ids
 
     def create(self, validated_data):
-        user = self.context['request'].user
-        if user.is_guest:
-            guest_tasks = self.context['request'].session.get('guest_tasks', [])
-            guest_tasks.append(validated_data)
-            self.context['request'].session['guest_tasks'] = guest_tasks
-            self.context['request'].session.save()
-            return validated_data
-
         subtasks_data = validated_data.pop('subtasks', [])
         user_ids = validated_data.pop('user_ids', [])
 
@@ -98,10 +83,6 @@ class TaskSerializer(serializers.ModelSerializer):
         return task
 
     def update(self, instance, validated_data):
-        user = self.context['request'].user
-        if user.is_guest:
-            return validated_data
-
         subtasks_data = validated_data.pop('subtasks', [])
         user_ids = validated_data.pop('user_ids', [])
 

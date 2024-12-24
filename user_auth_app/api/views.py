@@ -8,10 +8,13 @@ from rest_framework.permissions import AllowAny
 from .serializers import EmailAuthTokenSerializer
 from rest_framework.authtoken.models import Token
 from rest_framework.permissions import IsAuthenticated
+import uuid
+from join_app.models import Contact
 
 class CustomerUserList(generics.ListCreateAPIView):
-    queryset = CustomUser.objects.all()
+    queryset = CustomUser.objects.filter(is_guest=False)
     serializer_class = CustomUserSerializer
+    permission_classes = [IsAuthenticated]
 
 class CustomerUserDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = CustomUser.objects.all()
@@ -28,11 +31,12 @@ class RegisterView(APIView):
     permission_classes = (AllowAny,)
     def post(self, request):
         serializer = UserRegisterSerializer(data=request.data)
+        
         if serializer.is_valid():
             serializer.save()
             data = serializer.data
         else:
-            print("Registration errors:", serializer.errors)
+            print("Registration errors:", serializer.errors)  # Debugging: Zeigt Fehler bei der Registrierung
             data = serializer.errors
         return Response(data)
 
@@ -40,12 +44,13 @@ class EmailLoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        print("Request received with data:", request.data)
+        print("Request received with data:", request.data)  # Debugging statement to inspect request data
         serializer = EmailAuthTokenSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.validated_data['user']
-            print("User authenticated:", user)
+            print("User authenticated:", user)  # Debugging authenticated user details
 
+            # Ensure the user is active before proceeding
             if not user.is_active:
                 return Response({"error": "User account is inactive."}, status=status.HTTP_403_FORBIDDEN)
 
@@ -56,25 +61,54 @@ class EmailLoginView(APIView):
                 'email': user.email,
             }
             return Response(data, status=status.HTTP_200_OK)
-        print("Validation errors:", serializer.errors)
+        print("Validation errors:", serializer.errors)  # Debugging validation errors
         return Response(serializer.errors, status=400)
+    
 
 class GuestLoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        guest_user, created = CustomUser.objects.get_or_create(
-            email='guest@guest.com',
-            defaults={'username': 'GuestUser', 'is_guest': True}
+        guest_username = f"guest_{uuid.uuid4().hex[:3]}"
+        guest_email = f"{guest_username}@guest.com"
+
+        guest_user = CustomUser.objects.create_user(
+            username=guest_username,
+            email=guest_email,
+            password=None,
+            is_guest=True,
+            emblem="G",
+            color="#cccccc"
+        )
+        guest_user.save()
+
+        Contact.objects.create(
+            user=guest_user,
+            name=guest_username,
+            email=guest_email,
+            emblem=guest_user.emblem,
+            color=guest_user.color,
+            phone=""
         )
 
-        if not guest_user.is_active:
-            return Response({"error": "Guest account is inactive."}, status=status.HTTP_403_FORBIDDEN)
+        token, _ = Token.objects.get_or_create(user=guest_user)
 
-        Token.objects.filter(user=guest_user).delete()
-        token = Token.objects.create(user=guest_user)
-        data = {
-            'token': token.key,
-            'email': guest_user.email,
-        }
-        return Response(data, status=status.HTTP_200_OK)
+        return Response({
+            "token": token.key,
+            "email": guest_user.email,
+            "username": guest_user.username,
+            "emblem": guest_user.emblem,
+            "color": guest_user.color
+        }, status=status.HTTP_201_CREATED)
+
+class GuestLogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+
+        if hasattr(user, 'is_guest') and user.is_guest:
+            user.delete()
+            return Response({"message": "Gastbenutzer und Daten erfolgreich gelöscht."}, status=status.HTTP_200_OK)
+        else:
+            return Response({"error": "Kein Gastbenutzer erkannt oder nicht authentifiziert."}, status=status.HTTP_400_BAD_REQUEST)
