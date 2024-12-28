@@ -14,15 +14,15 @@ class ContactList(generics.ListCreateAPIView):
         contacts = Contact.objects.filter(user=user)
 
         # Stelle sicher, dass der Benutzer als Kontakt existiert
-        if not contacts.filter(email=user.email).exists():
-            Contact.objects.create(
-                user=user,
-                name=user.username or "Gast",
-                email=user.email or f"{user.username}@guest.com",
-                emblem=user.emblem or "G",
-                color=user.color or "#cccccc",
-                phone="N/A"
-            )
+        # if not contacts.filter(email=user.email).exists():
+        #     Contact.objects.create(
+        #         user=user,
+        #         name=user.username or "Gast",
+        #         email=user.email or f"{user.username}@guest.com",
+        #         emblem=user.emblem or "G",
+        #         color=user.color or "#cccccc",
+        #         phone=user.phone or "N/A"
+        #     )
 
         return contacts
 
@@ -73,7 +73,6 @@ class TaskDetail(generics.RetrieveUpdateDestroyAPIView):
                 {"message": "Status updated successfully", "status": instance.status}
             )
         
-        # Fallback auf das normale partial_update fÃ¼r andere Felder
         return super().partial_update(request, *args, **kwargs)
 
 class SubtaskList(generics.ListCreateAPIView):
