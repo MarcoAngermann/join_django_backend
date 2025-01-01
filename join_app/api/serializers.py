@@ -2,26 +2,34 @@ from rest_framework import serializers
 from ..models import Contact, Task, Subtask, TaskUserDetails
 from user_auth_app.models import CustomUser
 from user_auth_app.api.serializers import CustomUserSerializer
-
-from rest_framework import serializers
-from ..models import Contact
+import re
 
 class ContactSerializer(serializers.ModelSerializer):
-    phone = serializers.CharField(required=False)
-
     class Meta:
         model = Contact
         fields = ('id', 'name', 'email', 'phone', 'emblem', 'color')
         read_only_fields = ('id',)
 
-    def create(self, validated_data):
-        # Kontakte erstellen und Benutzer setzen
+    def validate_email(self, value):
         user = self.context['request'].user
-        validated_data['user'] = user
+        contact_id = self.instance.id if self.instance else None
+
+        if user.email == value:
+            raise serializers.ValidationError("E-Mail cannot be the same as the user's E-Mail.")
+
+        if Contact.objects.filter(user=user, email=value).exclude(id=contact_id).exists():
+            raise serializers.ValidationError("email already exists.")
+
+        if CustomUser.objects.filter(email=value).exists():
+            raise serializers.ValidationError("email already exists.")
+
+        return value
+
+    def create(self, validated_data):
+        validated_data['user'] = self.context['request'].user
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
-        # Aktualisiere nur Kontakt-Daten, NICHT Benutzer-Daten
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
@@ -30,11 +38,8 @@ class ContactSerializer(serializers.ModelSerializer):
     
     def perform_destroy(self, instance):
         user = instance.user
-        
-        # Lösche zuerst den Kontakt
         instance.delete()
 
-        # Lösche auch den Benutzer, wenn er der aktuelle Benutzer ist
         if user == self.request.user:
             user.delete()
 
@@ -46,7 +51,7 @@ class SubtaskSerializer(serializers.ModelSerializer):
 
     def validate_subtasks(self, value):
         if len(value) > 5:
-            raise serializers.ValidationError("Es sind maximal 5 Subtasks erlaubt.")
+            raise serializers.ValidationError("maximum 5 subtasks.")
         return value
 
 class TaskUserDetailsSerializer(serializers.ModelSerializer):

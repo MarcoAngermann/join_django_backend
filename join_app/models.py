@@ -1,18 +1,32 @@
 from django.db import models
 from user_auth_app.models import CustomUser
 from django.core.exceptions import ValidationError
+from user_auth_app.api.validators import validate_username_format, validate_phone_format
+
 
 class Contact(models.Model):
-    name = models.CharField(max_length=100)
-    email = models.EmailField(unique=True)
-    phone = models.TextField()
+    name = models.CharField(max_length=50, validators=[validate_username_format])
+    email = models.EmailField(
+        max_length=254,
+        error_messages={
+            "email": "Enter a valid email address"
+        }
+    )
+    phone = models.CharField(
+        max_length=13,
+        validators=[validate_phone_format],
+    )
     emblem = models.CharField(max_length=100)
     color = models.CharField(max_length=100)
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='contacts')
 
+    def clean(self):
+
+        if Contact.objects.filter(user=self.user, email=self.email).exclude(id=self.id).exists():
+            raise ValidationError("email already exists.")
+
     def save(self, *args, **kwargs):
-        if not self.id and Contact.objects.filter(user=self.user, email=self.email).exists():
-            raise ValidationError("Der Benutzer ist bereits als Kontakt vorhanden.")
+        self.full_clean()
         super().save(*args, **kwargs)
     
     def __str__(self):
