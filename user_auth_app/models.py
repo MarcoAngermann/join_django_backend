@@ -24,13 +24,33 @@ class CustomUser(AbstractUser):
     REQUIRED_FIELDS = ['username']
 
     def update_activity(self):
+        """
+        Updates the last activity timestamp of the user.
+        """
         self.last_activity = timezone.now()
         self.save(update_fields=['last_activity'])
 
     def save(self, *args, **kwargs):
+        """
+        Saves the user model instance.
+
+        If the username is 'guest', sets the user's password to an unusable password
+        so that the user can't log in with a password.
+
+        :param args: Positional arguments to pass to the superclass's save method
+        :param kwargs: Keyword arguments to pass to the superclass's save method
+        """
         if self.username == "guest":
             self.set_unusable_password()
         super().save(*args, **kwargs)
 
     def __str__(self):
+        """
+        Returns a string representation of the user instance.
+
+        The string representation is the user's email address.
+
+        :return: A string representation of the user instance
+        :rtype: str
+        """
         return self.email

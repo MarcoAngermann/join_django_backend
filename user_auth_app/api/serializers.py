@@ -13,13 +13,32 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         }
 
     def validate(self, data):
+        """
+        Validates the user registration data.
+
+        Checks that the passwords match and raises AuthenticationFailed exception
+        if they do not.
+
+        """
         if data['password'] != data['confirm_password']:
             raise AuthenticationFailed('Passwords do not match.')
         return data
     
     def validate_email(self, value):
+
         """
-        Überprüft, ob die E-Mail bereits verwendet wird.
+        Validates an email address.
+
+        Checks that the email address is not already in use.
+
+        Args:
+            value (str): The email address to validate.
+
+        Raises:
+            serializers.ValidationError: If the email address is already in use.
+
+        Returns:
+            str: The validated email address.
         """
         if CustomUser.objects.filter(email=value).exists():
             raise serializers.ValidationError("email is already in use.")
@@ -27,13 +46,33 @@ class UserRegisterSerializer(serializers.ModelSerializer):
 
     def validate_username(self, value):
         """
-        Überprüft, ob der Benutzername bereits verwendet wird.
+        Validates a username.
+
+        Checks that the username is not already in use.
+
+        Args:
+            value (str): The username to validate.
+
+        Raises:
+            serializers.ValidationError: If the username is already in use.
+
+        Returns:
+            str: The validated username.
         """
         if CustomUser.objects.filter(username=value).exists():
             raise serializers.ValidationError("username is already taken.")
         return value
     
     def create(self, validated_data):
+        """
+        Creates a new user.
+
+        Creates a new user with the validated data.
+
+        Converts the email address to lowercase.
+
+        :return: The created user.
+        """
         validated_data.pop('confirm_password')
         validated_data['email'] = validated_data['email'].lower()
         user = CustomUser.objects.create_user(**validated_data)
@@ -50,6 +89,22 @@ class EmailAuthTokenSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
+        """
+        Validates the authentication data.
+
+        Checks that the email address and password are valid, raises
+        AuthenticationFailed exception if they are not.
+
+        Args:
+            attrs (dict): The data to validate.
+
+        Raises:
+            AuthenticationFailed: If the email address or password are invalid.
+            AuthenticationFailed: If the account is inactive.
+
+        Returns:
+            dict: The validated data with the user object added.
+        """
         email = attrs.get('email', '').lower()
         password = attrs.get('password', '')
 

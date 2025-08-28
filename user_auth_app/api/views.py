@@ -26,12 +26,35 @@ class CurrentUser(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_object(self):
+        """
+        Returns the user object associated with the current request.
+
+        :return: The user object associated with the current request.
+        :rtype: CustomUser
+        """
         return self.request.user
     
 class RegisterView(APIView):
     permission_classes = (AllowAny,)
 
     def post(self, request):
+        """
+        Handles the user registration process.
+
+        Expects a JSON payload with the following keys and values:
+        - username: A unique username for the user.
+        - email: A unique email address for the user.
+        - password: A password for the user to use when logging in.
+        - confirm_password: The password again, for confirmation.
+
+        Returns a 201 Created response if the user is successfully registered,
+        or a 400 Bad Request response if the data is invalid.
+
+        :param request: The request object
+        :type request: rest_framework.request.Request
+        :return: A response object
+        :rtype: rest_framework.response.Response
+        """
         print("Request received with data:", request.data)
         serializer = UserRegisterSerializer(data=request.data)
         
@@ -43,10 +66,27 @@ class RegisterView(APIView):
             print("Registration errors:", serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 class EmailLoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
+        """
+        Authenticates a user and returns a JSON Web Token (JWT) that can be
+        used to access protected resources.
+
+        Expects a JSON payload with the following keys and values:
+        - email: The email address of the user to authenticate.
+        - password: The password of the user to authenticate.
+
+        Returns a 200 OK response if the user is successfully authenticated,
+        or a 400 Bad Request response if the data is invalid.
+
+        :param request: The request object
+        :type request: rest_framework.request.Request
+        :return: A response object
+        :rtype: rest_framework.response.Response
+        """
         print("Request received with data:", request.data)
         serializer = EmailAuthTokenSerializer(data=request.data)
         if serializer.is_valid():
@@ -75,6 +115,16 @@ class GuestLoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
+        """
+        Creates a new guest user, deletes inactive guest users, and returns a JSON
+        response with the guest user's information and a JSON Web Token (JWT) that
+        can be used to access protected resources.
+
+        :param request: The request object
+        :type request: rest_framework.request.Request
+        :return: A response object
+        :rtype: rest_framework.response.Response
+        """
         guest_threshold_time = now() - timedelta(minutes=1)
         inactive_guests = CustomUser.objects.filter(
             is_guest=True,
@@ -110,10 +160,43 @@ class GuestLoginView(APIView):
             "color": guest_user.color
         }, status=status.HTTP_201_CREATED)
 
+
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        """
+        Logs the user out by deleting the associated token.
+
+        :param request: The request object
+        :type request: rest_framework.request.Request
+        :return: A response object
+        :rtype: rest_framework.response.Response
+        """
+        user = request.user
+        try:
+            request.user.auth_token.delete()
+        except Exception:
+            pass  
+
+        return Response(
+            {"message": "User successfully logged out."},
+            status=status.HTTP_200_OK
+        )
+
+
 class GuestLogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        """
+        Logs the guest user out by deleting the associated user and token.
+
+        :param request: The request object
+        :type request: rest_framework.request.Request
+        :return: A response object
+        :rtype: rest_framework.response.Response
+        """
         user = request.user
 
         if hasattr(user, 'is_guest') and user.is_guest:
@@ -126,6 +209,17 @@ class ActivityPingView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        """
+        Updates the last activity timestamp of the user associated with the current request.
+        
+        Returns a 200 OK response if the user is successfully updated, or a 400 Bad Request response if
+        the user is not authenticated or if the data is invalid.
+        
+        :param request: The request object
+        :type request: rest_framework.request.Request
+        :return: A response object
+        :rtype: rest_framework.response.Response
+        """
         user = request.user
         current_time = now()
         user.last_activity = current_time

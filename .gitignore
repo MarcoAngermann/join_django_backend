@@ -1,22 +1,3 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
 
-# Django
-db.sqlite3
-/media
-/staticfiles
-
-# Environments
+/env
 .env
-venv/
-env/
-
-# macOS
-.DS_Store
-._*
-
-# Windows
-Thumbs.db
-ehthumbs.db

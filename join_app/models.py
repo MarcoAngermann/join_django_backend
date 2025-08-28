@@ -21,15 +21,28 @@ class Contact(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='contacts')
 
     def clean(self):
+        """
+        Validates the contact before saving.
 
+        Raises ValidationError if the contact's email already exists for the same user.
+        """
         if Contact.objects.filter(user=self.user, email=self.email).exclude(id=self.id).exists():
             raise ValidationError("email already exists.")
 
     def save(self, *args, **kwargs):
+        """
+        Calls full_clean() to validate the contact before saving.
+
+        Raises ValidationError if the contact's email already exists for the same user.
+
+        """
         self.full_clean()
         super().save(*args, **kwargs)
     
     def __str__(self):
+        """
+        Returns the name of the contact as a string.
+        """
         return self.name
     
 class Task(models.Model):
@@ -50,6 +63,12 @@ class Task(models.Model):
     )
 
     def __str__(self):
+        """
+        Returns the title of the task as a string.
+
+        :return: The title of the task
+        :rtype: str
+        """
         return self.title
     
 class TaskUserDetails(models.Model):
@@ -58,6 +77,15 @@ class TaskUserDetails(models.Model):
     checked = models.BooleanField(default=False)
 
     def __str__(self):
+        """
+        Returns a string representation of the TaskUserDetails instance.
+
+        The string representation shows the task title, the username of the user,
+        and whether the task is checked or not.
+
+        :return: A string representation of the TaskUserDetails instance
+        :rtype: str
+        """
         return f"Task: {self.task.title}, User: {self.user.username}, Checked: {self.checked}"
 
 class Subtask(models.Model):
@@ -66,4 +94,12 @@ class Subtask(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='subtasks')
     
     def __str__(self):
+        """
+        Returns a string representation of the Subtask instance.
+
+        The string representation shows the subtask text and whether the subtask is checked or not.
+
+        :return: A string representation of the Subtask instance
+        :rtype: str
+        """
         return f"{self.subtasktext} (Checked: {self.checked})"
